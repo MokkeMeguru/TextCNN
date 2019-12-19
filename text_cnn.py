@@ -13,7 +13,7 @@ def TextCNN(vocab_size, feature_size, embed_size, num_classes, num_filters,
     embed = keras.layers.Reshape((feature_size, embed_size, 1), name='add_channel')(embed)
 
     pool_outputs = []
-    for filter_size in list(map(int, filter_sizes.split(','))):
+    for filter_size in filter_sizes:# list(map(int, filter_sizes.split(','))):
         filter_shape = (filter_size, embed_size)
         conv = keras.layers.Conv2D(num_filters, filter_shape, strides=(1, 1), padding='valid',
                                    data_format='channels_last', activation='relu',
@@ -39,3 +39,10 @@ def TextCNN(vocab_size, feature_size, embed_size, num_classes, num_filters,
                                  name='dense')(pool_outputs)
     model = keras.Model(inputs=inputs, outputs=outputs)
     return model
+
+def test():
+    model = TextCNN(vocab_size=8000, feature_size=75, embed_size=512, num_classes=1, num_filters=128, dropout_rate=0.5, regularizers_lambda=0.01, filter_sizes=[3, 4, 5])
+    print(model.summary())
+    from tensorflow.keras.utils import plot_model
+    plot_model(model, to_file='modelarch.png')
+    keras.utils.plot_model(model, show_shapes=True, to_file='modelarch_with_shape.png')

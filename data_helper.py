@@ -4,72 +4,73 @@ import csv
 from tensorflow.keras import preprocessing
 import numpy as np
 import json
+import sentencepiece as spm
 
 
-def text_preprocess(text):
-    """
-    Clean and segment the text.
-    Return a new text.
-    """
-    text = re.sub(r"[\d+\s+\.!\/_,?=\$%\^\)*\(\+\"\'\+——！:；，。？、~@#%……&*（）·¥\-\|\\《》〈〉～]",
-                  "", text)
-    text = re.sub("[<>]", "", text)
-    text = re.sub("[a-zA-Z0-9]", "", text)
-    text = re.sub(r"\s", "", text)
-    if not text:
-        return ''
-    return ' '.join(string for string in text)
+# def text_preprocess(text):
+#     """
+#     Clean and segment the text.
+#     Return a new text.
+#     """
+#     text = re.sub(r"[\d+\s+\.!\/_,?=\$%\^\)*\(\+\"\'\+——！:；，。？、~@#%……&*（）·¥\-\|\\《》〈〉～]",
+#                   "", text)
+#     text = re.sub("[<>]", "", text)
+#     text = re.sub("[a-zA-Z0-9]", "", text)
+#     text = re.sub(r"\s", "", text)
+#     if not text:
+#         return ''
+#     return ' '.join(string for string in text)
 
 
-def load_data_and_write_to_file(data_file, train_data_file, test_data_file, test_sample_percentage):
-    """
-    Loads xlsx from files, splits the data to train and test data, write them to file.
-    """
-    # Load and clean data from files
-    case_type = ['民事案件', '刑事案件', '行政案件', '赔偿案件', '执行案件']
-    df = pd.read_excel(data_file, sheet_name=case_type, usecols=[3, 5], dtype=str)
-    x_text, y = [], []
-    for each_case_type in case_type:
-        x_text += df[each_case_type]["自然段正文"].tolist()
-        y += df[each_case_type]["正确分段标记"].tolist()
-    x_new = []
-    empty_idx = []
-    for idx, each_text in enumerate(x_text):
-        tmp = text_preprocess(each_text)
-        if tmp:
-            x_new.append(tmp)
-        else:
-            empty_idx.append(idx)
+# def load_data_and_write_to_file(data_file, train_data_file, test_data_file, test_sample_percentage):
+#     """
+#     Loads xlsx from files, splits the data to train and test data, write them to file.
+#     """
+#     # Load and clean data from files
+#     case_type = ['民事案件', '刑事案件', '行政案件', '赔偿案件', '执行案件']
+#     df = pd.read_excel(data_file, sheet_name=case_type, usecols=[3, 5], dtype=str)
+#     x_text, y = [], []
+#     for each_case_type in case_type:
+#         x_text += df[each_case_type]["自然段正文"].tolist()
+#         y += df[each_case_type]["正确分段标记"].tolist()
+#     x_new = []
+#     empty_idx = []
+#     for idx, each_text in enumerate(x_text):
+#         tmp = text_preprocess(each_text)
+#         if tmp:
+#             x_new.append(tmp)
+#         else:
+#             empty_idx.append(idx)
 
-    # Generate labels
-    y_new = []
-    for idx, label in enumerate(y):
-        if idx in empty_idx:
-            continue
-        label = label.split('，')[0]
-        if label == '99':
-            y_new.append(0)
-        else:
-            y_new.append(int(label))
+#     # Generate labels
+#     y_new = []
+#     for idx, label in enumerate(y):
+#         if idx in empty_idx:
+#             continue
+#         label = label.split('，')[0]
+#         if label == '99':
+#             y_new.append(0)
+#         else:
+#             y_new.append(int(label))
 
-    # Shuffle data and split data to train and test
-    np.random.seed(323)
-    np.random.shuffle(x_new)
-    np.random.seed(323)
-    np.random.shuffle(y_new)
-    test_sample_index = -1 * int(test_sample_percentage * len(y_new))
-    x_train, x_test = x_new[:test_sample_index], x_new[test_sample_index:]
-    y_train, y_test = y_new[:test_sample_index], y_new[test_sample_index:]
+#     # Shuffle data and split data to train and test
+#     np.random.seed(323)
+#     np.random.shuffle(x_new)
+#     np.random.seed(323)
+#     np.random.shuffle(y_new)
+#     test_sample_index = -1 * int(test_sample_percentage * len(y_new))
+#     x_train, x_test = x_new[:test_sample_index], x_new[test_sample_index:]
+#     y_train, y_test = y_new[:test_sample_index], y_new[test_sample_index:]
 
-    # Write to CSV file
-    with open(train_data_file, 'w', newline='', encoding='utf-8-sig') as f:
-        print('Write train data to {} ...'.format(train_data_file))
-        writer = csv.writer(f)
-        writer.writerows(zip(x_train, y_train))
-    with open(test_data_file, 'w', newline='', encoding='utf-8-sig') as f:
-        print('Write test data to {} ...'.format(test_data_file))
-        writer = csv.writer(f)
-        writer.writerows(zip(x_test, y_test))
+#     # Write to CSV file
+#     with open(train_data_file, 'w', newline='', encoding='utf-8-sig') as f:
+#         print('Write train data to {} ...'.format(train_data_file))
+#         writer = csv.writer(f)
+#         writer.writerows(zip(x_train, y_train))
+#     with open(test_data_file, 'w', newline='', encoding='utf-8-sig') as f:
+#         print('Write test data to {} ...'.format(test_data_file))
+#         writer = csv.writer(f)
+#         writer.writerows(zip(x_test, y_test))
 
 
 def preprocess(data_file, vocab_file, padding_size, test=False):
@@ -103,3 +104,32 @@ def preprocess(data_file, vocab_file, padding_size, test=False):
                                                  padding='post', truncating='post')
         print("Shape of test data: {}\n".format(np.shape(x)))
         return x, y
+
+def preprocess(data_file, target, vocab_prefix, padding_size, train=True):
+    """preprocess for one label
+    - data_file: str or Path
+    file
+    - target: str
+    csv's row key
+    - vocab_prefix
+    sentencepiece's prefix ex. "hoge/m"
+    - padding_size
+    sequence's padding
+    - train
+    training?
+    """
+    print('[Info] Load tokenizer : {}'.format(vocab_prefix + '.model'))
+    sp = spm.SentencePieceProcessor()
+    sp.load(vocab_prefix + '.model')
+    print('[Info] Vocab size : {}'.format(sp.GetPieceSize()))
+    example_sentence = "世界よこんにちは。"
+    print('[Debug] example [{}]'.format('\t'.join(sp.EncodeAsPieces(example_sentence))) )
+    print('[Info] Loading data : {}'.format(data_file))
+    df = pd.read_csv(data_file)
+    x = [sp.EncodeAsIds(sentence) for sentence in df['0']]
+    x = preprocessing.sequence.pad_sequences(x, maxlen=padding_size, padding='post', truncating='post')
+    y = df[target].to_numpy(dtype=float)
+    return x, y, sp
+
+def test_preprocess():
+    x, y, sp = preprocess('dataset/flow_labeled_train.csv',  'ogawa', 'dataset/m', 75)
